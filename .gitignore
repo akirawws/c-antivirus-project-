@@ -1,1 +1,11 @@
-.gitignore
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.log
+*.tlog
+ipch/

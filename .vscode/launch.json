@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Monitoring",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/monitor.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "preLaunchTask": "build-monitor"
+        }
+    ]
+}

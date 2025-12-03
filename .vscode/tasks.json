@@ -1,0 +1,18 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-monitor",
+            "type": "shell",
+            "command": "cl",
+            "args": [
+                "src\\security\\main.cpp",
+                "src\\security\\monitoring.cpp",
+                "/I", "src",
+                "/EHsc",
+                "/Fe:monitor.exe"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
