@@ -39,6 +39,9 @@ private:
      
     void UpdateListView();
     std::wstring FormatMemory(DWORD memoryKB) const;
+    void ShowProcessContextMenu(int itemIndex);
+    void TerminateSelectedProcess(int itemIndex);
+    void OpenProcessLocation(int itemIndex);
     
 public:
     ProcessMonitorWindow();

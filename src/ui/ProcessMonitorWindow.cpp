@@ -49,6 +49,9 @@ LRESULT CALLBACK ProcessMonitorWindow::WndProcStatic(HWND hwnd, UINT msg, WPARAM
         CREATESTRUCT* pCreate = (CREATESTRUCT*)lParam;
         pThis = (ProcessMonitorWindow*)pCreate->lpCreateParams;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pThis);
+        // ВАЖНО: присваиваем hwnd до вызова HandleMessage, 
+        // чтобы дочерние окна могли создаваться с валидным родителем
+        pThis->hwnd = hwnd;
     } else {
         pThis = (ProcessMonitorWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     }
@@ -71,6 +74,10 @@ LRESULT ProcessMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPar
             hwnd, (HMENU)1, GetModuleHandleW(NULL), NULL);
         
         if (!hListView) {
+            DWORD err = GetLastError();
+            std::wstringstream ss;
+            ss << L"ListView creation failed. GetLastError=" << err;
+            MessageBoxW(hwnd, ss.str().c_str(), L"Process Monitor", MB_OK | MB_ICONERROR);
             return -1;
         }
         
@@ -119,7 +126,43 @@ LRESULT ProcessMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPar
             processManager.fetchProcesses();
             UpdateListView();
         }
+        else if (LOWORD(wParam) == 3001) {
+            // Завершить процесс
+            if (selectedIndex >= 0) {
+                TerminateSelectedProcess(selectedIndex);
+            }
+        }
+        else if (LOWORD(wParam) == 3002) {
+            // Перейти к процессу
+            if (selectedIndex >= 0) {
+                OpenProcessLocation(selectedIndex);
+            }
+        }
         return 0;
+    
+    case WM_NOTIFY:
+    {
+        LPNMHDR pnmh = (LPNMHDR)lParam;
+        if (pnmh->hwndFrom == hListView) {
+            if (pnmh->code == NM_DBLCLK) {
+                // Двойной клик на элементе ListView
+                LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)lParam;
+                if (pnmia->iItem >= 0) {
+                    selectedIndex = pnmia->iItem;
+                    ShowProcessContextMenu(pnmia->iItem);
+                }
+            }
+            else if (pnmh->code == NM_RCLICK) {
+                // Правый клик на элементе ListView
+                LPNMITEMACTIVATE pnmia = (LPNMITEMACTIVATE)lParam;
+                if (pnmia->iItem >= 0) {
+                    selectedIndex = pnmia->iItem;
+                    ShowProcessContextMenu(pnmia->iItem);
+                }
+            }
+        }
+        return 0;
+    }
         
     case WM_SIZE:
     {
@@ -200,33 +243,73 @@ std::wstring ProcessMonitorWindow::FormatMemory(DWORD memoryKB) const {
 }
 
 bool ProcessMonitorWindow::Create(HINSTANCE hInstance, int nCmdShow) {
+    // Убедимся, что есть валидный hInstance
+    HINSTANCE appInstance = hInstance ? hInstance : GetModuleHandleW(nullptr);
+
+    // Перерегистрируем класс окна, чтобы гарантировать cbWndExtra
+    UnregisterClassW(L"ProcessMonitorClassV2", appInstance); // игнорируем ошибку, если не было
+
     // Регистрируем класс окна
-    WNDCLASSW wc = { 0 };
+    WNDCLASSEXW wc = { 0 };
+    wc.cbSize = sizeof(WNDCLASSEXW);
+    wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WndProcStatic;
-    wc.hInstance = hInstance;
-    wc.lpszClassName = L"ProcessMonitorClass";
+    wc.hInstance = appInstance;
+    wc.lpszClassName = L"ProcessMonitorClassV2";
+    wc.cbWndExtra = sizeof(LONG_PTR); // запас под GWLP_USERDATA
     wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.hIcon = LoadIconW(NULL, IDI_APPLICATION);
+    wc.hIconSm = LoadIconW(NULL, IDI_APPLICATION);
 
-    if (!RegisterClassW(&wc)) {
-        return false;
+    ATOM atom = RegisterClassExW(&wc);
+    if (atom == 0) {
+        DWORD err = GetLastError();
+        if (err != ERROR_CLASS_ALREADY_EXISTS) {
+            LPWSTR msgBuf = nullptr;
+            FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPWSTR)&msgBuf, 0, nullptr);
+
+            std::wstringstream ss;
+            ss << L"RegisterClassExW failed. GetLastError=" << err;
+            if (msgBuf) {
+                ss << L"\n" << msgBuf;
+                LocalFree(msgBuf);
+            }
+            MessageBoxW(nullptr, ss.str().c_str(), L"Process Monitor", MB_OK | MB_ICONERROR);
+            return false;
+        }
     }
 
     // Создаем окно
     hwnd = CreateWindowW(
-        L"ProcessMonitorClass",
+        L"ProcessMonitorClassV2",
         L"Process Monitor",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
         800, 500,
         NULL,
         NULL,
-        hInstance,
-        NULL
+        appInstance,
+        this 
     );
 
     if (!hwnd) {
+        DWORD err = GetLastError();
+        LPWSTR msgBuf = nullptr;
+        FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPWSTR)&msgBuf, 0, nullptr);
+
+        std::wstringstream ss;
+        ss << L"CreateWindowW failed. GetLastError=" << err
+           << L"\nappInstance=" << appInstance;
+        if (msgBuf) {
+            ss << L"\n" << msgBuf;
+            LocalFree(msgBuf);
+        }
+        MessageBoxW(nullptr, ss.str().c_str(), L"Process Monitor", MB_OK | MB_ICONERROR);
         return false;
     }
 
@@ -234,4 +317,110 @@ bool ProcessMonitorWindow::Create(HINSTANCE hInstance, int nCmdShow) {
     UpdateWindow(hwnd);
 
     return true;
+}
+
+void ProcessMonitorWindow::ShowProcessContextMenu(int itemIndex) {
+    if (itemIndex < 0 || itemIndex >= (int)processManager.getProcesses().size()) {
+        return;
+    }
+
+    const Process& proc = processManager.getProcesses()[itemIndex];
+
+    // Создаем контекстное меню
+    HMENU hMenu = CreatePopupMenu();
+    if (!hMenu) return;
+
+    std::wstring menuTitle = L"Процесс: " + proc.name;
+    AppendMenuW(hMenu, MF_STRING | MF_DISABLED, 0, menuTitle.c_str());
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hMenu, MF_STRING, 3001, L"🛑 Завершить процесс");
+    AppendMenuW(hMenu, MF_STRING, 3002, L"📁 Перейти к процессу");
+
+    // Получаем позицию курсора
+    POINT pt;
+    GetCursorPos(&pt);
+
+    // Показываем меню
+    TrackPopupMenu(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN, pt.x, pt.y, 0, hwnd, nullptr);
+    DestroyMenu(hMenu);
+}
+
+void ProcessMonitorWindow::TerminateSelectedProcess(int itemIndex) {
+    if (itemIndex < 0 || itemIndex >= (int)processManager.getProcesses().size()) {
+        return;
+    }
+
+    const Process& proc = processManager.getProcesses()[itemIndex];
+
+    // Подтверждение
+    std::wstringstream ss;
+    ss << L"Вы уверены, что хотите завершить процесс?\n\n"
+       << L"Имя: " << proc.name << L"\n"
+       << L"PID: " << proc.pid << L"\n"
+       << L"Путь: " << proc.filePath;
+
+    int result = MessageBoxW(hwnd, ss.str().c_str(), L"Подтверждение", 
+                             MB_YESNO | MB_ICONWARNING);
+
+    if (result == IDYES) {
+        // Открываем процесс с правами на завершение
+        HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, proc.pid);
+        if (hProcess) {
+            if (TerminateProcess(hProcess, 0)) {
+                MessageBoxW(hwnd, L"Процесс успешно завершен!", L"Успех", 
+                           MB_OK | MB_ICONINFORMATION);
+                
+                // Обновляем список
+                processManager.fetchProcesses();
+                UpdateListView();
+            } else {
+                DWORD err = GetLastError();
+                std::wstringstream errMsg;
+                errMsg << L"Не удалось завершить процесс.\nКод ошибки: " << err
+                       << L"\n\nВозможно, требуются права администратора.";
+                MessageBoxW(hwnd, errMsg.str().c_str(), L"Ошибка", 
+                           MB_OK | MB_ICONERROR);
+            }
+            CloseHandle(hProcess);
+        } else {
+            DWORD err = GetLastError();
+            std::wstringstream errMsg;
+            errMsg << L"Не удалось открыть процесс.\nКод ошибки: " << err
+                   << L"\n\nВозможно, требуются права администратора.";
+            MessageBoxW(hwnd, errMsg.str().c_str(), L"Ошибка", 
+                       MB_OK | MB_ICONERROR);
+        }
+    }
+}
+
+void ProcessMonitorWindow::OpenProcessLocation(int itemIndex) {
+    if (itemIndex < 0 || itemIndex >= (int)processManager.getProcesses().size()) {
+        return;
+    }
+
+    const Process& proc = processManager.getProcesses()[itemIndex];
+
+    // Извлекаем путь к папке
+    std::wstring folderPath = proc.filePath;
+    size_t lastSlash = folderPath.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos) {
+        folderPath = folderPath.substr(0, lastSlash);
+    }
+
+    // Открываем проводник и выделяем файл
+    std::wstring params = L"/select,\"" + proc.filePath + L"\"";
+    
+    HINSTANCE result = ShellExecuteW(hwnd, L"open", L"explorer.exe", 
+                                     params.c_str(), nullptr, SW_SHOWNORMAL);
+
+    if ((INT_PTR)result <= 32) {
+        // Если не удалось выделить файл, просто открываем папку
+        result = ShellExecuteW(hwnd, L"open", folderPath.c_str(), 
+                              nullptr, nullptr, SW_SHOWNORMAL);
+        
+        if ((INT_PTR)result <= 32) {
+            MessageBoxW(hwnd, L"Не удалось открыть расположение процесса.", 
+                       L"Ошибка", MB_OK | MB_ICONERROR);
+        }
+    }
 }

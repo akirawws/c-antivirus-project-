@@ -103,6 +103,14 @@ std::vector<ProcessInfo> get_process_list_snapshot() {
         wchar_t pathBuf[MAX_PATH] = {};
         DWORD copied = GetModuleFileNameExW(hProcess, nullptr, pathBuf, MAX_PATH);
 
+        // Получаем использование памяти
+        PROCESS_MEMORY_COUNTERS_EX pmc = {};
+        pmc.cb = sizeof(pmc);
+        DWORD memoryKB = 0;
+        if (GetProcessMemoryInfo(hProcess, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+            memoryKB = (DWORD)(pmc.WorkingSetSize / 1024); // Конвертируем байты в КБ
+        }
+
         CloseHandle(hProcess);
 
         if (copied == 0) continue;
@@ -119,7 +127,7 @@ std::vector<ProcessInfo> get_process_list_snapshot() {
     info.pid = pid;
     info.name = exeNameW;  // Используем wstring версию
     info.path = fullPathW;  // Используем wstring версию (не преобразуем в UTF-8)
-    info.memoryUsage = 0;   // Устанавливаем значение (можете вычислить реальное использование памяти)
+    info.memoryUsage = memoryKB;   // Реальное использование памяти в КБ
     info.isSuspicious = suspicious;
     info.icon = NULL;       // Иконку можно установить позже или оставить NULL
 
