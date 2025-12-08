@@ -1,14 +1,19 @@
 #pragma once
-#include <string>
+
+#include <windows.h>
 #include <vector>
-#include <cstdint>
+#include <string>
 
 struct ProcessInfo {
-    std::string icon;
-    std::string name;
-    std::uint32_t pid;
-    std::string file_path;
-    std::uint32_t size;
-    bool suspicious;
+    DWORD pid;
+    std::wstring name;
+    std::wstring path;
+    DWORD memoryUsage;
+    bool isSuspicious;
+    HICON icon;
 };
-std::vector<ProcessInfo> get_process_list_snapshot();
+
+class ProcessMonitorAPI {
+public:
+    static std::vector<ProcessInfo> GetAllProcesses();
+};

@@ -11,7 +11,7 @@
 #include <iostream>
 #include <cwctype>
 
-static bool DEBUG_MODE = true;
+static bool DEBUG_MODE = false;
 
 static std::string wide_to_utf8(const std::wstring& wstr) {
     if (wstr.empty()) return {};
@@ -113,26 +113,27 @@ std::vector<ProcessInfo> get_process_list_snapshot() {
         std::uint64_t fileSize = get_file_size_w(fullPathW);
         if (fileSize == 0) continue;
 
-        bool suspicious = starts_with_icase(fullPathW, tempDir);
+    bool suspicious = starts_with_icase(fullPathW, tempDir);
 
-        ProcessInfo info;
-        info.name       = exeName;
-        info.pid        = pid;
-        info.file_path  = wide_to_utf8(fullPathW);
-        info.size       = fileSize;
-        info.suspicious = suspicious;
-        info.icon       = info.file_path;
+    ProcessInfo info;
+    info.pid = pid;
+    info.name = exeNameW;  // Используем wstring версию
+    info.path = fullPathW;  // Используем wstring версию (не преобразуем в UTF-8)
+    info.memoryUsage = 0;   // Устанавливаем значение (можете вычислить реальное использование памяти)
+    info.isSuspicious = suspicious;
+    info.icon = NULL;       // Иконку можно установить позже или оставить NULL
 
-        if (DEBUG_MODE) {
-            std::cout << "[PROCESS] "
-                << info.name << " | PID=" << info.pid
-                << " | Path=" << info.file_path
-                << " | Size=" << info.size
-                << " | Suspicious=" << (info.suspicious ? "YES" : "NO")
-                << "\n";
-        }
+    if (DEBUG_MODE) {
+        // Преобразуем wstring в UTF-8 для вывода
+        std::cout << "[PROCESS] "
+            << wide_to_utf8(info.name) << " | PID=" << info.pid
+            << " | Path=" << wide_to_utf8(info.path)  // Преобразуем для вывода
+            << " | Memory=" << info.memoryUsage
+            << " | Suspicious=" << (info.isSuspicious ? "YES" : "NO")
+            << "\n";
+    }
 
-        result.push_back(std::move(info));
+    result.push_back(std::move(info));
 
     } while (Process32NextW(snapshot, &pe));
 
@@ -140,8 +141,8 @@ CloseHandle(snapshot);
 
     std::sort(result.begin(), result.end(),
         [](const ProcessInfo& a, const ProcessInfo& b) {
-            if (a.suspicious != b.suspicious)
-                return a.suspicious > b.suspicious;
+            if (a.isSuspicious != b.isSuspicious)      // изменили на isSuspicious
+                return a.isSuspicious > b.isSuspicious; // изменили на isSuspicious
             return a.name < b.name;
         });
 
