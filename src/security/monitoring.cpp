@@ -1,13 +1,15 @@
-#include "../api/monitoring_h.cpp"
+#include "../api/monitoring_h.h"
+
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#endif
 
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
-#include <filesystem>
 #include <algorithm>
 #include <iostream>
 #include <cwctype>
-
 
 static bool DEBUG_MODE = true;
 
@@ -48,6 +50,27 @@ static bool starts_with_icase(const std::wstring& value, const std::wstring& pre
     return true;
 }
 
+static std::uint64_t get_file_size_w(const std::wstring& path) {
+    HANDLE h = CreateFileW(
+        path.c_str(),
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr
+    );
+
+    if (h == INVALID_HANDLE_VALUE) return 0;
+
+    LARGE_INTEGER size;
+    BOOL ok = GetFileSizeEx(h, &size);
+    CloseHandle(h);
+
+    if (!ok) return 0;
+    return static_cast<std::uint64_t>(size.QuadPart);
+}
+
 std::vector<ProcessInfo> get_process_list_snapshot() {
     std::vector<ProcessInfo> result;
 
@@ -74,27 +97,21 @@ std::vector<ProcessInfo> get_process_list_snapshot() {
         }
 
         DWORD pid = pe.th32ProcessID;
-        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
         if (!hProcess) continue;
 
-        wchar_t pathBuf[MAX_PATH];
-        DWORD pathLen = MAX_PATH;
-        std::wstring fullPathW;
-        if (QueryFullProcessImageNameW(hProcess, 0, pathBuf, &pathLen)) {
-            fullPathW.assign(pathBuf, pathLen);
-        }
+        wchar_t pathBuf[MAX_PATH] = {};
+        DWORD copied = GetModuleFileNameExW(hProcess, nullptr, pathBuf, MAX_PATH);
 
         CloseHandle(hProcess);
-        if (fullPathW.empty()) continue;
 
+        if (copied == 0) continue;
+
+        std::wstring fullPathW(pathBuf);
         if (starts_with_icase(fullPathW, windowsDir)) continue;
 
-        std::uint64_t fileSize = 0;
-        try {
-            fileSize = std::filesystem::file_size(fullPathW);
-        } catch (...) {
-            continue;
-        }
+        std::uint64_t fileSize = get_file_size_w(fullPathW);
+        if (fileSize == 0) continue;
 
         bool suspicious = starts_with_icase(fullPathW, tempDir);
 
@@ -108,25 +125,25 @@ std::vector<ProcessInfo> get_process_list_snapshot() {
 
         if (DEBUG_MODE) {
             std::cout << "[PROCESS] "
-                      << info.name << " | PID=" << info.pid
-                      << " | Path=" << info.file_path
-                      << " | Size=" << info.size
-                      << " | Suspicious=" << (info.suspicious ? "YES" : "NO")
-                      << "\n";
+                << info.name << " | PID=" << info.pid
+                << " | Path=" << info.file_path
+                << " | Size=" << info.size
+                << " | Suspicious=" << (info.suspicious ? "YES" : "NO")
+                << "\n";
         }
 
         result.push_back(std::move(info));
 
     } while (Process32NextW(snapshot, &pe));
 
-    CloseHandle(snapshot);
+CloseHandle(snapshot);
 
     std::sort(result.begin(), result.end(),
-              [](const ProcessInfo& a, const ProcessInfo& b) {
-                  if (a.suspicious != b.suspicious)
-                      return a.suspicious > b.suspicious;
-                  return a.name < b.name;
-              });
+        [](const ProcessInfo& a, const ProcessInfo& b) {
+            if (a.suspicious != b.suspicious)
+                return a.suspicious > b.suspicious;
+            return a.name < b.name;
+        });
 
     return result;
 }

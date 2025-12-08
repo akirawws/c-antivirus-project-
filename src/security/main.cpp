@@ -1,5 +1,5 @@
-#include "api/monitoring_h.cpp"
-#include "security/scan_dowload.h"
+#include "../api/monitoring_h.h"
+#include "scan_download.h"
 
 #include <iostream>
 #include <limits>
@@ -8,7 +8,7 @@ using namespace std;
 
 int main() {
     cout << "Select mode:\n";
-    cout << "1 - Process snapshot\n";
+    cout << "1 - Process monitoring\n";
     cout << "2 - Background Downloads scanner\n";
     cout << "Choice: ";
 
