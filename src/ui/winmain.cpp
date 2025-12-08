@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include "ProcessMonitorWindow.h"
+#include "DownloadMonitorWindow.h"
 
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "shlwapi.lib")
@@ -9,9 +10,11 @@
 HINSTANCE g_hInstance;
 HWND g_hMainWnd;
 ProcessMonitorWindow* g_pProcessMonitor = nullptr;
+DownloadMonitorWindow* g_pDownloadMonitor = nullptr;
 
-// Прототип функции для создания окна монитора процессов
+// Прототипы функций
 void CreateProcessMonitorWindow();
+void CreateDownloadMonitorWindow();
 
 // Процедура главного окна
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -24,26 +27,30 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             20, 20, 340, 40, hwnd, NULL, g_hInstance, NULL);
 
         // Кнопки меню
-        CreateWindowW(L"BUTTON", L"📊 Запустить монитор процессов",
+        CreateWindowW(L"BUTTON", L"📊 Монитор процессов",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            50, 80, 280, 50, hwnd, (HMENU)1001, g_hInstance, NULL);
+            50, 80, 280, 45, hwnd, (HMENU)1001, g_hInstance, NULL);
+
+        CreateWindowW(L"BUTTON", L"📥 Мониторинг загрузок",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            50, 135, 280, 45, hwnd, (HMENU)1002, g_hInstance, NULL);
 
         CreateWindowW(L"BUTTON", L"🔍 Сканировать систему",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            50, 140, 280, 50, hwnd, (HMENU)1002, g_hInstance, NULL);
+            50, 190, 280, 45, hwnd, (HMENU)1003, g_hInstance, NULL);
 
         CreateWindowW(L"BUTTON", L"⚙ Настройки",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            50, 200, 280, 50, hwnd, (HMENU)1003, g_hInstance, NULL);
+            50, 245, 280, 45, hwnd, (HMENU)1004, g_hInstance, NULL);
 
         CreateWindowW(L"BUTTON", L"🚪 Выход",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            50, 260, 280, 50, hwnd, (HMENU)1004, g_hInstance, NULL);
+            50, 300, 280, 45, hwnd, (HMENU)1005, g_hInstance, NULL);
 
         // Статус
         CreateWindowW(L"STATIC", L"Статус: Готов к работе",
             WS_CHILD | WS_VISIBLE | SS_LEFT,
-            20, 320, 340, 20, hwnd, NULL, g_hInstance, NULL);
+            20, 360, 340, 20, hwnd, NULL, g_hInstance, NULL);
     }
     return 0;
 
@@ -51,16 +58,19 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     {
         int id = LOWORD(wParam);
         switch (id) {
-        case 1001: // Запустить монитор процессов
+        case 1001: // Монитор процессов
             CreateProcessMonitorWindow();
             break;
-        case 1002: // Сканировать систему
+        case 1002: // Мониторинг загрузок
+            CreateDownloadMonitorWindow();
+            break;
+        case 1003: // Сканировать систему
             MessageBoxW(hwnd, L"Запуск сканирования системы...", L"Сканирование", MB_OK | MB_ICONINFORMATION);
             break;
-        case 1003: // Настройки
+        case 1004: // Настройки
             MessageBoxW(hwnd, L"Открытие настроек...", L"Настройки", MB_OK | MB_ICONINFORMATION);
             break;
-        case 1004: // Выход
+        case 1005: // Выход
             DestroyWindow(hwnd);
             break;
         }
@@ -101,6 +111,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             delete g_pProcessMonitor;
             g_pProcessMonitor = nullptr;
         }
+        if (g_pDownloadMonitor) {
+            delete g_pDownloadMonitor;
+            g_pDownloadMonitor = nullptr;
+        }
         PostQuitMessage(0);
         return 0;
 
@@ -110,36 +124,48 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 }
 
 void CreateProcessMonitorWindow() {
-    MessageBoxW(NULL, L"DEBUG: CreateProcessMonitorWindow called", L"Debug", MB_OK);
-    
     if (g_pProcessMonitor) {
-        MessageBoxW(NULL, L"DEBUG: Deleting old monitor", L"Debug", MB_OK);
         delete g_pProcessMonitor;
     }
     
-    MessageBoxW(NULL, L"DEBUG: Creating new ProcessMonitorWindow", L"Debug", MB_OK);
     g_pProcessMonitor = new ProcessMonitorWindow();
     
     if (g_pProcessMonitor) {
-        MessageBoxW(NULL, L"DEBUG: Trying to create window...", L"Debug", MB_OK);
         bool result = g_pProcessMonitor->Create(g_hInstance, SW_SHOWNORMAL);
         
         if (result) {
-            MessageBoxW(NULL, L"DEBUG: Window created successfully!", L"Debug", MB_OK);
             ShowWindow(g_hMainWnd, SW_HIDE);
         } else {
             MessageBoxW(NULL, 
-                L"ERROR: Failed to create process monitor window\n"
-                L"Check if:\n"
-                L"1. Window class is registered\n"
-                L"2. CreateWindowW parameters are correct", 
-                L"Error", MB_OK | MB_ICONERROR);
+                L"Не удалось создать окно монитора процессов", 
+                L"Ошибка", MB_OK | MB_ICONERROR);
             
             delete g_pProcessMonitor;
             g_pProcessMonitor = nullptr;
         }
-    } else {
-        MessageBoxW(NULL, L"ERROR: Failed to allocate memory for monitor", L"Error", MB_OK | MB_ICONERROR);
+    }
+}
+
+void CreateDownloadMonitorWindow() {
+    if (g_pDownloadMonitor) {
+        delete g_pDownloadMonitor;
+    }
+    
+    g_pDownloadMonitor = new DownloadMonitorWindow();
+    
+    if (g_pDownloadMonitor) {
+        bool result = g_pDownloadMonitor->Create(g_hInstance, SW_SHOWNORMAL);
+        
+        if (result) {
+            ShowWindow(g_hMainWnd, SW_HIDE);
+        } else {
+            MessageBoxW(NULL, 
+                L"Не удалось создать окно мониторинга загрузок", 
+                L"Ошибка", MB_OK | MB_ICONERROR);
+            
+            delete g_pDownloadMonitor;
+            g_pDownloadMonitor = nullptr;
+        }
     }
 }
 
@@ -176,7 +202,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         L"Антивирусный комплекс - Главное меню",
         WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        400, 400,
+        400, 440,
         NULL,
         NULL,
         hInstance,
