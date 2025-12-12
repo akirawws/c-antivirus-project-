@@ -1,4 +1,5 @@
 #include "DownloadMonitorWindow.h"
+#include "colors.h"
 #include <sstream>
 #include <fstream>
 #include <algorithm>
@@ -73,7 +74,7 @@ static bool FileContainsForbiddenPatterns(const std::wstring& path, std::wstring
 // Реализация DownloadMonitorWindow
 DownloadMonitorWindow::DownloadMonitorWindow()
     : hwnd(nullptr), hListView(nullptr), hButtonStart(nullptr), 
-      hButtonStop(nullptr), hStatusLabel(nullptr),
+      hButtonStop(nullptr), hStatusLabel(nullptr), hBackButton(nullptr),
       isScanning(false), shouldStop(false) {
 }
 
@@ -151,6 +152,10 @@ LRESULT DownloadMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPa
         hButtonStop = CreateWindowW(L"BUTTON", L"⏸ Остановить мониторинг",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_DISABLED,
             220, 400, 200, 35, hwnd, (HMENU)3, GetModuleHandleW(NULL), NULL);
+
+        hBackButton = CreateWindowW(L"BUTTON", L"← Вернуться в главное меню",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            450, 400, 250, 35, hwnd, (HMENU)5, GetModuleHandleW(NULL), NULL);
         
         return 0;
     }
@@ -171,6 +176,15 @@ LRESULT DownloadMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPa
                 DeleteSelectedFile(selected);
             }
         }
+        else if (LOWORD(wParam) == 5) {
+            // Вернуться в главное меню
+            extern HWND g_hMainWnd;
+            if (g_hMainWnd) {
+                ShowWindow(g_hMainWnd, SW_SHOW);
+                SetForegroundWindow(g_hMainWnd);
+            }
+            DestroyWindow(hwnd);
+        }
         return 0;
     
     case WM_NOTIFY:
@@ -186,6 +200,46 @@ LRESULT DownloadMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPa
         }
         return 0;
     }
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        
+        RECT client;
+        GetClientRect(hwnd, &client);
+
+        // Темный фон
+        HBRUSH bgBrush = CreateSolidBrush(Colors::DARK_BG);
+        FillRect(hdc, &client, bgBrush);
+        DeleteObject(bgBrush);
+
+        // Бардовая шапка
+        RECT header = { 0, 0, client.right, 60 };
+        HBRUSH headerBrush = CreateSolidBrush(Colors::BURGUNDY_DARK);
+        FillRect(hdc, &header, headerBrush);
+        DeleteObject(headerBrush);
+
+        // Тень под шапкой
+        RECT shadowRect = { 0, 60, client.right, 65 };
+        HBRUSH shadowBrush = CreateSolidBrush(RGB(20, 20, 25));
+        FillRect(hdc, &shadowRect, shadowBrush);
+        DeleteObject(shadowBrush);
+
+        // Заголовок
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, Colors::WHITE);
+        HFONT hFont = CreateFontW(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
+        TextOutW(hdc, 20, 20, L"📥 Мониторинг загрузок", 23);
+        SelectObject(hdc, oldFont);
+        DeleteObject(hFont);
+
+        EndPaint(hwnd, &ps);
+    }
+    return 0;
     
     case WM_SIZE:
     {
@@ -203,6 +257,9 @@ LRESULT DownloadMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPa
         }
         if (hButtonStop) {
             MoveWindow(hButtonStop, 220, height - 45, 200, 35, TRUE);
+        }
+        if (hBackButton) {
+            MoveWindow(hBackButton, 450, height - 45, 250, 35, TRUE);
         }
         return 0;
     }

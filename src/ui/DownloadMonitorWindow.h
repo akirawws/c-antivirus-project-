@@ -22,6 +22,7 @@ private:
     HWND hButtonStart;
     HWND hButtonStop;
     HWND hStatusLabel;
+    HWND hBackButton;
     
     std::thread scannerThread;
     std::atomic<bool> isScanning;

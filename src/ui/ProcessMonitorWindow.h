@@ -12,7 +12,7 @@ struct Process {
     DWORD pid;
     std::wstring name;
     std::wstring filePath;
-    DWORD memoryKB;
+    ULONGLONG fileSizeBytes;
     bool suspicious;
     HICON icon;
 };
@@ -29,7 +29,9 @@ class ProcessMonitorWindow {
 private:
     HWND hwnd;
     HWND hListView;
-    HWND hButton;
+    HWND hRefreshButton;
+    HWND hOpenFolderButton;
+    HWND hBackButton;
     HIMAGELIST hImageList;
     int selectedIndex;
     ProcessManager processManager;
@@ -38,10 +40,11 @@ private:
     LRESULT HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
      
     void UpdateListView();
-    std::wstring FormatMemory(DWORD memoryKB) const;
+    std::wstring FormatMemory(ULONGLONG bytes) const;
     void ShowProcessContextMenu(int itemIndex);
     void TerminateSelectedProcess(int itemIndex);
     void OpenProcessLocation(int itemIndex);
+    LRESULT HandleCustomDraw(LPNMLVCUSTOMDRAW customDraw);
     
 public:
     ProcessMonitorWindow();
