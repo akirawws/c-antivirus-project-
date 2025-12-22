@@ -35,30 +35,30 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         g_hSubtitleFont = CreateFontW(16, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
             DEFAULT_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        g_hButtonFont = CreateFontW(15, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+        g_hButtonFont = CreateFontW(14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
             DEFAULT_QUALITY, DEFAULT_PITCH, L"Segoe UI");
 
-        // Кнопки меню (owner-draw для современного вида) с понятными обозначениями
-        HWND hBtnProc = CreateWindowW(L"BUTTON", L"🖥 Монитор процессов\nПросмотр активных процессов системы",
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | BS_MULTILINE,
-            24, 140, 200, 60, hwnd, (HMENU)1001, g_hInstance, NULL);
+        // Обычные кнопки с одной строкой (высота 35px)
+        HWND hBtnProc = CreateWindowW(L"BUTTON", L"🖥 Монитор процессов",
+            WS_CHILD | WS_VISIBLE | BS_CENTER | BS_VCENTER,
+            24, 140, 200, 35, hwnd, (HMENU)1001, g_hInstance, NULL);
 
-        HWND hBtnDownloads = CreateWindowW(L"BUTTON", L"📥 Мониторинг загрузок\nОтслеживание подозрительных файлов",
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | BS_MULTILINE,
-            24, 210, 200, 60, hwnd, (HMENU)1002, g_hInstance, NULL);
+        HWND hBtnDownloads = CreateWindowW(L"BUTTON", L"📥 Мониторинг загрузок",
+            WS_CHILD | WS_VISIBLE | BS_CENTER | BS_VCENTER,
+            24, 185, 200, 35, hwnd, (HMENU)1002, g_hInstance, NULL);
 
-        HWND hBtnScan = CreateWindowW(L"BUTTON", L"🔍 Сканировать систему\nПолная проверка на угрозы",
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | BS_MULTILINE,
-            24, 280, 200, 60, hwnd, (HMENU)1003, g_hInstance, NULL);
+        HWND hBtnScan = CreateWindowW(L"BUTTON", L"🔍 Сканировать систему",
+            WS_CHILD | WS_VISIBLE | BS_CENTER | BS_VCENTER,
+            24, 230, 200, 35, hwnd, (HMENU)1003, g_hInstance, NULL);
 
-        HWND hBtnSettings = CreateWindowW(L"BUTTON", L"⚙ Настройки\nКонфигурация защиты",
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | BS_MULTILINE,
-            24, 350, 200, 60, hwnd, (HMENU)1004, g_hInstance, NULL);
+        HWND hBtnSettings = CreateWindowW(L"BUTTON", L"⚙ Настройки",
+            WS_CHILD | WS_VISIBLE | BS_CENTER | BS_VCENTER,
+            24, 275, 200, 35, hwnd, (HMENU)1004, g_hInstance, NULL);
 
-        HWND hBtnExit = CreateWindowW(L"BUTTON", L"🚪 Выход\nЗакрыть приложение",
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | BS_MULTILINE,
-            24, 420, 200, 60, hwnd, (HMENU)1005, g_hInstance, NULL);
+        HWND hBtnExit = CreateWindowW(L"BUTTON", L"🚪 Выход",
+            WS_CHILD | WS_VISIBLE | BS_CENTER | BS_VCENTER,
+            24, 320, 200, 35, hwnd, (HMENU)1005, g_hInstance, NULL);
 
         // Текст на главной панели
         HWND hTitle = CreateWindowW(L"STATIC", L"Aegis Shield - Мониторинг в реальном времени",
@@ -69,7 +69,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             WS_CHILD | WS_VISIBLE | SS_LEFT,
             250, 175, 540, 40, hwnd, NULL, g_hInstance, NULL);
 
-        // Дополнительная информация
+        // Дополнительная информация (все STATIC)
         HWND hInfo1 = CreateWindowW(L"STATIC", L"📊 Монитор процессов - Отслеживайте все активные процессы в системе, их использование ресурсов и статус безопасности.",
             WS_CHILD | WS_VISIBLE | SS_LEFT,
             250, 230, 680, 30, hwnd, NULL, g_hInstance, NULL);
@@ -83,7 +83,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             250, 310, 680, 30, hwnd, NULL, g_hInstance, NULL);
 
         HWND hInfo4 = CreateWindowW(L"STATIC", L"⚙ Настройки - Настройте параметры защиты, уведомления и автоматические действия антивируса.",
-            WS_CHILD | WS_VISIBLE | SS_LEFT,
+            WS_CHILD | WS_VISIBLE | SS_LEFT,  // ИСПРАВЛЕНО: WS_VISIBLE
             250, 350, 680, 30, hwnd, NULL, g_hInstance, NULL);
 
         // Применяем шрифты
@@ -185,56 +185,16 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         EndPaint(hwnd, &ps);
     }
     return 0;
-
-    case WM_DRAWITEM:
-    {
-        LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
-        if (dis->CtlType == ODT_BUTTON) {
-            UINT id = dis->CtlID;
-            COLORREF fill = (id == 1005) ? RGB(180, 40, 50) : Colors::BURGUNDY_PRIMARY;
-            COLORREF fillHover = (id == 1005) ? RGB(200, 50, 60) : Colors::BURGUNDY_MID;
-            COLORREF borderColor = Colors::BURGUNDY_DARK;
-
-            if (dis->itemState & (ODS_SELECTED | ODS_HOTLIGHT | ODS_FOCUS)) {
-                fill = fillHover;
-                borderColor = Colors::BURGUNDY_MID;
-            }
-
-            // Фон кнопки
-            HBRUSH brush = CreateSolidBrush(fill);
-            FillRect(dis->hDC, &dis->rcItem, brush);
-            DeleteObject(brush);
-
-            // Текст кнопки (многострочный)
-            wchar_t text[256]{};
-            GetWindowTextW(dis->hwndItem, text, 256);
-            SetBkMode(dis->hDC, TRANSPARENT);
-            SetTextColor(dis->hDC, Colors::WHITE);
-            HFONT oldBtnFont = (HFONT)SelectObject(dis->hDC, g_hButtonFont ? g_hButtonFont : (HFONT)GetStockObject(DEFAULT_GUI_FONT));
-            
-            RECT textRect = dis->rcItem;
-            textRect.left += 8;
-            textRect.right -= 8;
-            textRect.top += 4;
-            textRect.bottom -= 4;
-            
-            DrawTextW(dis->hDC, text, -1, &textRect,
-                DT_CENTER | DT_VCENTER | DT_WORDBREAK | DT_NOPREFIX);
-            SelectObject(dis->hDC, oldBtnFont);
-
-            // Рамка (бардовая)
-            HPEN outline = CreatePen(PS_SOLID, 1, borderColor);
-            HPEN old = (HPEN)SelectObject(dis->hDC, outline);
-            Rectangle(dis->hDC, dis->rcItem.left, dis->rcItem.top,
-                dis->rcItem.right, dis->rcItem.bottom);
-            SelectObject(dis->hDC, old);
-            DeleteObject(outline);
-
-            return TRUE;
-        }
-    }
-    return FALSE;
-
+    case WM_CTLCOLORBTN:
+{
+    // Устанавливаем белый текст для кнопок
+    SetTextColor((HDC)wParam, Colors::WHITE);
+    SetBkMode((HDC)wParam, TRANSPARENT);
+    
+    // Возвращаем кисть для фона кнопки
+    static HBRUSH hBtnBrush = CreateSolidBrush(Colors::BURGUNDY_PRIMARY);
+    return (LRESULT)hBtnBrush;
+}
     case WM_DESTROY:
         if (g_hTitleFont) DeleteObject(g_hTitleFont);
         if (g_hSubtitleFont) DeleteObject(g_hSubtitleFont);
