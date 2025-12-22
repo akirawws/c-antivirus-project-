@@ -173,12 +173,6 @@ LRESULT ProcessMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPar
             }
         }
         else if (LOWORD(wParam) == 4) {
-            // Вернуться в главное меню
-            extern HWND g_hMainWnd;
-            if (g_hMainWnd) {
-                ShowWindow(g_hMainWnd, SW_SHOW);
-                SetForegroundWindow(g_hMainWnd);
-            }
             DestroyWindow(hwnd);
         }
         return 0;
@@ -278,7 +272,6 @@ LRESULT ProcessMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPar
     }
     
     case WM_DESTROY:
-        PostQuitMessage(0);
         return 0;
         
     default:

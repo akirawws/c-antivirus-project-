@@ -229,9 +229,7 @@ void CreateProcessMonitorWindow() {
     if (g_pProcessMonitor) {
         bool result = g_pProcessMonitor->Create(g_hInstance, SW_SHOWNORMAL);
         
-        if (result) {
-            ShowWindow(g_hMainWnd, SW_HIDE);
-        } else {
+        if (!result) {
             MessageBoxW(NULL, 
                 L"Не удалось создать окно монитора процессов", 
                 L"Ошибка", MB_OK | MB_ICONERROR);
@@ -252,9 +250,7 @@ void CreateDownloadMonitorWindow() {
     if (g_pDownloadMonitor) {
         bool result = g_pDownloadMonitor->Create(g_hInstance, SW_SHOWNORMAL);
         
-        if (result) {
-            ShowWindow(g_hMainWnd, SW_HIDE);
-        } else {
+        if (!result) {
             MessageBoxW(NULL, 
                 L"Не удалось создать окно мониторинга загрузок", 
                 L"Ошибка", MB_OK | MB_ICONERROR);
@@ -275,9 +271,7 @@ void CreateSettingsWindow() {
     if (g_pSettingsWindow) {
         bool result = g_pSettingsWindow->Create(g_hInstance, SW_SHOWNORMAL);
         
-        if (result) {
-            ShowWindow(g_hMainWnd, SW_HIDE);
-        } else {
+        if (!result) {
             MessageBoxW(NULL, 
                 L"Не удалось создать окно настроек", 
                 L"Ошибка", MB_OK | MB_ICONERROR);

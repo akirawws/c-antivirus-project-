@@ -266,7 +266,6 @@ LRESULT DownloadMonitorWindow::HandleMessage(UINT msg, WPARAM wParam, LPARAM lPa
     
     case WM_DESTROY:
         StopScanning();
-        PostQuitMessage(0);
         return 0;
         
     default:
